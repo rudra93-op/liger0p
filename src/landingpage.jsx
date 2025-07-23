@@ -1,5 +1,6 @@
- import React, { useState, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { Play, Music, Users, Award, Star, Check, Menu, X, Upload, Pause, Volume2, Home, Settings, LogOut, Link, MessageCircle, Send } from 'lucide-react';
+import axios from 'axios';
 
 export default function AarohAILandingPage() {
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -33,12 +34,36 @@ export default function AarohAILandingPage() {
   const fileInputRef = useRef(null);
   
   const [formData, setFormData] = useState({
-    fullName: '',
+    Name: '',
     email: '',
     password: '',
-    confirmPassword: '',
     agreeToTerms: false
   });
+
+  const handleAuthSubmit = async () => {
+  const endpoint = isLogin ? "https://aaroh-backend.onrender.com/api/auth/login" 
+    : "https://aaroh-backend.onrender.com/api/auth/register"; 
+  
+  try {
+    const payload = isLogin
+      ? { email: formData.email, password: formData.password }
+      : {
+          Name: formData.Name,
+          email: formData.email,
+          password: formData.password,
+        };
+
+    const res = await axios.post(endpoint, payload);
+    alert(`Success: ${res.data.message}`);
+    setIsAuthenticated(true);
+    setCurrentUser(res.data.user);
+    setShowAuthModal(false);
+  } catch (error) {
+    console.error(error);
+    alert(`Error: ${error.response?.data?.message || 'Request failed'}`);
+  }
+};
+
 
   // Feedback handlers
   const handleFeedbackChange = (field, value) => {
@@ -188,33 +213,68 @@ export default function AarohAILandingPage() {
     ]
   };
 
-  const sampleChords = [
+/*  const sampleChords = [
     { chord: 'G', time: 0, duration: 2 },
     { chord: 'A', time: 2, duration: 2 },
     { chord: 'C', time: 4, duration: 2 },
     { chord: 'G', time: 6, duration: 2 }
   ];
-
+*/
   // All your existing functions remain the same...
-  const handleFileUpload = (event) => {
+  const handleFileUpload = async (event) => {
+  try {
     const file = event.target.files[0];
-    if (file && file.type.startsWith('audio/')) {
-      const url = URL.createObjectURL(file);
-      setUploadedSong({
-        name: file.name,
-        url: url,
-        file: file,
-        type: 'file'
-      });
-      setIsAnalyzing(true);
-      setShowUrlInput(false);
-      
-      setTimeout(() => {
-        setChords(sampleChords);
-        setIsAnalyzing(false);
-      }, 3000);
+
+    if (!file || !file.type.startsWith("audio/")) {
+      alert("Please select a valid audio file.");
+      return;
     }
-  };
+
+    // ✅ Create FormData and append the file
+    const formData = new FormData();
+formData.append("ideal", file); // ✅ Must match backend field: "ideal"
+
+    // ✅ Send to backend
+    const res = await fetch("https://aaroh-backend.onrender.com/api/upload-ideal", {
+      method: "POST",
+      body: formData,
+    });
+
+    if (!res.ok) {
+      const err = await res.text();
+      throw new Error(err || "Upload failed");
+    }
+
+    const data = await res.json();
+    console.log("Ideal uploaded:", data.idealPath);
+      const chordFeedback = data.feedback;
+
+    // 🎯 Send to Guitar Tab section
+    setChords(chordFeedback);  
+
+    // ✅ Show uploaded audio in UI
+    const url = URL.createObjectURL(file);
+    setUploadedSong({
+      name: file.name,
+      url: url,
+      file: file,
+      type: "file",
+    });
+
+    setIsAnalyzing(true);
+    setShowUrlInput(false);
+
+    // Dummy analysis logic
+    setTimeout(() => {
+      setChords(sampleChords);
+      setIsAnalyzing(false);
+    }, 3000);
+
+  } catch (err) {
+    console.error("Upload failed:", err.message);
+    alert("❌ Upload failed: " + err.message);
+  }
+};
 
   const handleUrlSubmit = () => {
     if (onlineUrl.trim()) {
@@ -227,7 +287,7 @@ export default function AarohAILandingPage() {
       setShowUrlInput(false);
       
       setTimeout(() => {
-        setChords(sampleChords);
+        setChords();
         setIsAnalyzing(false);
       }, 3000);
     }
@@ -541,7 +601,7 @@ export default function AarohAILandingPage() {
                     className="hidden"
                   />
                   <button
-                    onClick={() => fileInputRef.current?.click()}
+                    onClick={(handleFileUpload) => fileInputRef.current?.click(handleFileUpload)}
                     className="bg-blue-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-blue-700 transition-colors flex items-center gap-2 mx-auto"
                   >
                     <Upload className="w-5 h-5" />
@@ -1056,8 +1116,8 @@ export default function AarohAILandingPage() {
                     <label className="text-sm font-semibold text-gray-700">Full Name</label>
                     <input
                       type="text"
-                      name="fullName"
-                      value={formData.fullName}
+                      name="Name"
+                      value={formData.Name}
                       onChange={handleInputChange}
                       placeholder="John Doe"
                       className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white  text-gray-900"
@@ -1084,7 +1144,7 @@ export default function AarohAILandingPage() {
                       <button type="button" className="text-sm text-blue-500 hover:text-blue-600 font-medium bg-transparent">
                         Forgot Password
                       </button>
-                    )}
+                   )}
                   </div>
                   <input
                     type="password"
@@ -1096,19 +1156,7 @@ export default function AarohAILandingPage() {
                   />
                 </div>
 
-                {!isLogin && (
-                  <div className="space-y-2">
-                    <label className="text-sm font-semibold text-gray-700">Confirm Password</label>
-                    <input
-                      type="password"
-                      name="confirmPassword"
-                      value={formData.confirmPassword}
-                      onChange={handleInputChange}
-                      placeholder="••••••••"
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white text-gray-900"
-                    />
-                  </div>
-                )}
+               
 
                 {!isLogin && (
                   <div className="flex items-start space-x-3">
@@ -1133,7 +1181,7 @@ export default function AarohAILandingPage() {
                 )}
 
                 <button
-                  onClick={handleSubmit}
+                  onClick={handleAuthSubmit}
                   className="w-full bg-gradient-to-r from-blue-500 to-blue-600 text-white py-4 rounded-xl font-semibold hover:from-blue-600 hover:to-blue-700 transform hover:scale-[1.02] transition-all duration-200 shadow-lg hover:shadow-xl"
                 >
                   {isLogin ? 'Log In' : 'Create Account'}
