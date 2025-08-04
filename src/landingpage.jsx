@@ -41,8 +41,11 @@ export default function AarohAILandingPage() {
   });
 
   const handleAuthSubmit = async () => {
-  const endpoint = isLogin ? "https://aaroh-backend.onrender.com/api/auth/login" 
-    : "https://aaroh-backend.onrender.com/api/auth/register"; 
+  const endpoint = isLogin ? "http://localhost:5000/api/auth/login"
+  :  "http://localhost:5000/api/auth/register";
+  
+   /*"https://aaroh-backend.onrender.com/api/auth/login" 
+    : "https://aaroh-backend.onrender.com/api/auth/register"; */
   
   try {
     const payload = isLogin
@@ -230,12 +233,10 @@ export default function AarohAILandingPage() {
       return;
     }
 
-    // ✅ Create FormData and append the file
     const formData = new FormData();
-formData.append("ideal", file); // ✅ Must match backend field: "ideal"
+    formData.append("ideal", file); // ✅ Backend expects "ideal"
 
-    // ✅ Send to backend
-    const res = await fetch("https://aaroh-backend.onrender.com/api/upload-ideal", {
+    const res = await fetch("http://localhost:5000/api/upload-ideal", { //"https://aaroh-backend.onrender.com/api/upload-ideal"
       method: "POST",
       body: formData,
     });
@@ -246,11 +247,13 @@ formData.append("ideal", file); // ✅ Must match backend field: "ideal"
     }
 
     const data = await res.json();
-    console.log("Ideal uploaded:", data.idealPath);
-      const chordFeedback = data.feedback;
+    console.log("✅ Upload Success:", data);
 
-    // 🎯 Send to Guitar Tab section
-    setChords(chordFeedback);  
+    // 🎯 Actual feedback from backend
+    const chordFeedback = data.feedback || data.chords || [];
+
+    // ✅ Set the feedback chords once
+    setChords(chordFeedback);
 
     // ✅ Show uploaded audio in UI
     const url = URL.createObjectURL(file);
@@ -261,20 +264,15 @@ formData.append("ideal", file); // ✅ Must match backend field: "ideal"
       type: "file",
     });
 
-    setIsAnalyzing(true);
+    setIsAnalyzing(false);
     setShowUrlInput(false);
 
-    // Dummy analysis logic
-    setTimeout(() => {
-      setChords(sampleChords);
-      setIsAnalyzing(false);
-    }, 3000);
-
   } catch (err) {
-    console.error("Upload failed:", err.message);
+    console.error("❌ Upload failed:", err.message);
     alert("❌ Upload failed: " + err.message);
   }
 };
+
 
   const handleUrlSubmit = () => {
     if (onlineUrl.trim()) {
